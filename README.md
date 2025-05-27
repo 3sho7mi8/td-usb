@@ -10,6 +10,7 @@ CLI(Command Line Interface) for USB-based products of Tokyo Devices, Inc.
 
 - Microsoft Windows 7 or later (64bit)
 - Linux
+- macOS
 
 
 ## Product models
@@ -39,9 +40,9 @@ CLI(Command Line Interface) for USB-based products of Tokyo Devices, Inc.
 |TDSN604A8|[Genral-purpose Precision USB Current Sensor 20 Bit 0.8A Galvanic Isolation Bus-Powered](https://en.tokyodevices.com/items/332)|`tdsn604xx`|
 |TDSN60408|[Genral-purpose Precision USB Current Sensor 20 Bit 8A Galvanic Isolation Bus-Powered](https://en.tokyodevices.com/items/331)|`tdsn604xx`|
 |TDSN60420|[Genral-purpose Precision USB Current Sensor 20 Bit 20A Galvanic Isolation Bus-Powered](https://en.tokyodevices.com/items/330)|`tdsn604xx`|
-|TDSN7200|[General-Purpose High-Precision USB Temperature, Humidity, and Pressure Sensor, -40 to 125ÅãC, 0 to 100%RH, 260 to 1,260hPa, Bus Powered](https://en.tokyodevices.com/items/327)|`tdsn7200`|
-|TDSN7360|[General-purpose high-precision USB accelerometer, 3-axis, low-noise, Å}2.5g, 440Hz, bus-powered](https://en.tokyodevices.com/items/335)|`tdsn7360`|
-|TDSN7400|[General purpose USB thermocouple temperature sensor K type -40 to 1200Åé galvanic isolation Bus-Powered](https://en.tokyodevices.com/items/333)|`tdsn7400`|
+|TDSN7200|[General-Purpose High-Precision USB Temperature, Humidity, and Pressure Sensor, -40 to 125ÔøΩÔøΩC, 0 to 100%RH, 260 to 1,260hPa, Bus Powered](https://en.tokyodevices.com/items/327)|`tdsn7200`|
+|TDSN7360|[General-purpose high-precision USB accelerometer, 3-axis, low-noise, ÔøΩ}2.5g, 440Hz, bus-powered](https://en.tokyodevices.com/items/335)|`tdsn7360`|
+|TDSN7400|[General purpose USB thermocouple temperature sensor K type -40 to 1200ÔøΩÔøΩ galvanic isolation Bus-Powered](https://en.tokyodevices.com/items/333)|`tdsn7400`|
 |TDSN7502|[General purpose, Load cell to USB interface, Weight/Pressure sensor, 24-bit, Bus-power](https://en.tokyodevices.com/items/344)|`tdsn7502`|
 |TDFA1104|[General purpose USB 7 segment LED display, 4 digits, 0.8 inch height, red](https://en.tokyodevices.com/items/350)|`tdfa1104`|
 
@@ -65,6 +66,12 @@ If you do not have these library, try to search Windows Driver Kit or Windows SD
 - TD-USB is depend on `libusb-dev` package. You should install it before compile.  
    ex.) `apt install libusb-dev` for Ubuntu/Debian.
 
+#### On macOS
+
+- Xcode Command Line Tools: `xcode-select --install`
+- Homebrew: Install from https://brew.sh/
+- libusb-compat package: `brew install libusb-compat`
+
 ### Compile
 
 #### On Windows
@@ -79,6 +86,21 @@ Clone this repository to working directory.
 
 
     % git clone https://github.com/tokyodevices/td-usb
+
+
+Run make.
+
+
+    % cd td-usb
+    % make
+
+#### On macOS
+
+Clone this repository and install dependencies:
+
+
+    % git clone https://github.com/tokyodevices/td-usb
+    % brew install libusb-compat
 
 
 Run make.
