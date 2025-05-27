@@ -120,7 +120,23 @@ Run `td-usb` with no-option shows version information.
     Visit https://github.com/tokyodevices/td-usb/ for details
 
 
-**Setting device permission**
+**Setting device permission on macOS**
+
+On macOS, USB HID device access requires administrator privileges. You have several options:
+
+1. **Use the helper script (recommended):**
+   ```
+   % ./run-td-usb.sh iws660 get
+   ```
+
+2. **Run with sudo:**
+   ```
+   % sudo ./td-usb iws660 get
+   ```
+
+3. **For development apps:** Use the provided `macos/entitlements.plist` with Xcode signing.
+
+**Setting device permission on Linux**
 
 USB devices that are connected to Linux platform firstly be under control of `udev` system.
 Thus in most case it can only be accessed by root user. 
