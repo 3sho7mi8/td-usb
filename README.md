@@ -218,6 +218,172 @@ With `--loop` option, TD-USB read repeatedly `(name)=(value)` pair from the stan
 |14       |INVALID_RANGE			   |The given value is out of range. |
 
 
+## Lunar Integration (macOS)
+
+IWS660-CS illuminance sensor can be integrated with [Lunar](https://lunar.fyi/) app to automatically adjust monitor brightness based on ambient light.
+
+### Architecture
+
+```
+IWS660-CS (USB) → td-usb → /tmp/lux → lunarsensor → SSE → Lunar → Monitor Brightness
+```
+
+### Prerequisites
+
+- macOS
+- Lunar Pro (for Sensor Mode)
+- Python 3.11 or 3.12 (3.14 is not supported due to aiohttp compatibility)
+- IWS660-CS sensor connected
+- Homebrew (`brew install libusb-compat`)
+
+### File Structure
+
+```
+scripts/
+├── iws660-bridge.sh           # Reads sensor → writes /tmp/lux
+├── setup-lunar-integration.sh # Installs lunarsensor + dependencies
+└── start-lunar-integration.sh # Integrated startup script
+
+launchd/
+└── com.tokyodevices.iws660-lunar.plist  # Auto-start configuration
+```
+
+### Quick Start
+
+1. **Build td-usb:**
+   ```bash
+   make
+   ```
+
+2. **Configure sudoers (for passwordless USB access):**
+   ```bash
+   sudo sh -c 'echo "$(whoami) ALL=(ALL) NOPASSWD: $(pwd)/td-usb" > /etc/sudoers.d/td-usb'
+   sudo chmod 440 /etc/sudoers.d/td-usb
+   ```
+
+3. **Setup lunarsensor:**
+   ```bash
+   ./scripts/setup-lunar-integration.sh
+   ```
+
+4. **Start the integration:**
+   ```bash
+   ./scripts/start-lunar-integration.sh
+   ```
+
+5. **Enable Sensor Mode in Lunar app**
+   - Open Lunar settings
+   - Enable "Sensor Mode"
+   - Verify lux value is displayed
+
+### Auto-start at Login (Recommended)
+
+To automatically start the integration when you log in:
+
+```bash
+# Install the launch agent
+cp launchd/com.tokyodevices.iws660-lunar.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+```
+
+### Management Commands
+
+```bash
+# Check service status
+launchctl list | grep tokyodevices
+
+# Stop service
+launchctl unload ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+
+# Start service
+launchctl load ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+
+# Remove auto-start
+launchctl unload ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+rm ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+
+# View logs
+tail -f ~/Library/Logs/td-usb/launchd.log
+tail -f ~/Library/Logs/td-usb/bridge.log
+tail -f ~/Library/Logs/td-usb/lunarsensor.log
+```
+
+### Manual Operation
+
+Run components separately for debugging:
+
+```bash
+# Terminal 1: Start the bridge
+./scripts/iws660-bridge.sh
+
+# Terminal 2: Start lunarsensor
+cd ~/.lunarsensor && ./venv/bin/uvicorn lunarsensor:app --host 0.0.0.0 --port 8000
+
+# Terminal 3: Verify API
+curl http://localhost:8000/sensor/ambient_light
+# Expected: {"id":"sensor-ambient_light","state":"123.4 lx","value":123.4}
+```
+
+### Troubleshooting
+
+**Device not detected:**
+```bash
+# Check USB connection
+system_profiler SPUSBDataType | grep -A5 "16c0"
+
+# Reinstall libusb
+brew reinstall libusb-compat
+
+# Test device directly
+sudo ./td-usb iws660 get
+```
+
+**Permission denied errors:**
+```bash
+# Verify sudoers configuration
+sudo -l | grep td-usb
+
+# If not configured, add sudoers entry
+sudo sh -c 'echo "$(whoami) ALL=(ALL) NOPASSWD: $(pwd)/td-usb" > /etc/sudoers.d/td-usb'
+sudo chmod 440 /etc/sudoers.d/td-usb
+```
+
+**Lunar not connecting to sensor:**
+```bash
+# Check Lunar settings
+defaults read fyi.lunar.Lunar sensorHostname  # Should be: localhost
+defaults read fyi.lunar.Lunar sensorPort      # Should be: 8000
+
+# Reset Lunar sensor settings if needed
+defaults write fyi.lunar.Lunar sensorHostname "localhost"
+defaults write fyi.lunar.Lunar sensorPort 8000
+
+# Test API endpoint
+curl http://localhost:8000/sensor/ambient_light
+```
+
+**Service not starting:**
+```bash
+# Check service status
+launchctl list | grep tokyodevices
+
+# View error logs
+cat ~/Library/Logs/td-usb/launchd-error.log
+
+# Restart service
+launchctl unload ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+launchctl load ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+```
+
+### How It Works
+
+1. **iws660-bridge.sh** reads illuminance values from IWS660-CS every 2 seconds using `td-usb`
+2. Values are written to `/tmp/lux` as plain text (e.g., `234.5`)
+3. **lunarsensor** (Python/FastAPI) reads `/tmp/lux` and exposes it via HTTP API
+4. **Lunar app** polls `http://localhost:8000/sensor/ambient_light` for sensor data
+5. Lunar adjusts monitor brightness based on the illuminance value
+
+
 ## License
 
 TD-USB is released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
