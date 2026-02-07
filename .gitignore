@@ -8,3 +8,5 @@
 *.opendb
 *.TMP
 *.aps
+.DS_Store
+.claude/
