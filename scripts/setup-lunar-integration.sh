@@ -4,15 +4,18 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LUNARSENSOR_DIR="$HOME/.lunarsensor"
 VENV_DIR="$LUNARSENSOR_DIR/venv"
 
 echo "=== IWS660-CS Lunar Integration Setup ==="
 echo ""
 
-# Find suitable Python version (3.12 preferred for compatibility)
+# Find suitable Python version
+# Priority: 3.13 > 3.12 > 3.11 > python3
+# Note: 3.14+ is excluded by default due to pydantic v1 compatibility risk
 PYTHON_BIN=""
-for py in python3.12 python3.11 python3.13 python3; do
+for py in python3.13 python3.12 python3.11 python3; do
     if command -v "$py" &> /dev/null; then
         PYTHON_BIN="$py"
         break
@@ -21,11 +24,12 @@ done
 
 if [ -z "$PYTHON_BIN" ]; then
     echo "Error: Python 3 is required but not installed."
-    echo "Install with: brew install python@3.12"
+    echo "Install with: brew install python@3.13"
     exit 1
 fi
 
-echo "Using Python: $PYTHON_BIN ($($PYTHON_BIN --version))"
+PYTHON_VERSION="$("$PYTHON_BIN" --version 2>&1)"
+echo "Using Python: $PYTHON_BIN ($PYTHON_VERSION)"
 
 # Clone or update lunarsensor
 if [ -d "$LUNARSENSOR_DIR" ]; then
@@ -49,17 +53,27 @@ echo ""
 echo "Creating Python virtual environment..."
 "$PYTHON_BIN" -m venv "$VENV_DIR"
 
-# Activate venv and install dependencies
+# Record Python version for future diagnostics
+echo "$PYTHON_VERSION" > "$LUNARSENSOR_DIR/.python-version"
+echo "Recorded Python version to $LUNARSENSOR_DIR/.python-version"
+
+# Install dependencies using venv pip directly (no activate needed)
 echo ""
 echo "Installing Python dependencies in venv..."
-cd "$LUNARSENSOR_DIR"
-source "$VENV_DIR/bin/activate"
-pip install --upgrade pip --quiet
+"$VENV_DIR/bin/pip" install --upgrade pip --quiet
+"$VENV_DIR/bin/pip" install "aiohttp>=3.9.0" "fastapi>=0.92.0" "sse-starlette>=1.2.1" "uvicorn>=0.20.0" "pydantic>=1.10.10,<2.0" --quiet
 
-# Install with updated versions (original requirements.txt has outdated aiohttp)
-pip install "aiohttp>=3.9.0" "fastapi>=0.92.0" "sse-starlette>=1.2.1" "uvicorn>=0.20.0" "pydantic>=1.10.10,<2.0" --quiet
-
-deactivate
+# Install customized lunarsensor.py with Lunar v6.9.6 sensor endpoint support
+CUSTOM_LUNARSENSOR="$SCRIPT_DIR/lunarsensor-iws660.py"
+if [ -f "$CUSTOM_LUNARSENSOR" ]; then
+    echo ""
+    echo "Installing customized lunarsensor.py (Lunar v6.9.6 compatible)..."
+    cp "$CUSTOM_LUNARSENSOR" "$LUNARSENSOR_DIR/lunarsensor.py"
+else
+    echo ""
+    echo "Warning: Custom lunarsensor not found at $CUSTOM_LUNARSENSOR"
+    echo "Using upstream lunarsensor.py (may produce 404s with Lunar v6.9.6+)"
+fi
 
 # Configure Lunar to use local sensor
 echo ""

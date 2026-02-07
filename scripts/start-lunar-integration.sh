@@ -37,6 +37,16 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
+# Parse options
+FIX_VENV=false
+for arg in "$@"; do
+    case "$arg" in
+        --fix-venv)
+            FIX_VENV=true
+            ;;
+    esac
+done
+
 # Check prerequisites
 if [ ! -d "$LUNARSENSOR_DIR" ]; then
     echo "Error: lunarsensor not installed."
@@ -48,6 +58,49 @@ if [ ! -f "$VENV_PYTHON" ]; then
     echo "Error: Python venv not found at $VENV_PYTHON"
     echo "Run: ./scripts/setup-lunar-integration.sh"
     exit 1
+fi
+
+# Verify venv Python is actually executable (detect broken symlinks)
+if ! "$VENV_PYTHON" --version &>/dev/null; then
+    LINKED_PYTHON="$(readlink "$VENV_PYTHON" 2>/dev/null || echo "unknown")"
+    RECORDED_VERSION=""
+    if [ -f "$LUNARSENSOR_DIR/.python-version" ]; then
+        RECORDED_VERSION="$(cat "$LUNARSENSOR_DIR/.python-version")"
+    fi
+
+    echo "Error: Python venv is broken."
+    echo "  Symlink: $VENV_PYTHON -> $LINKED_PYTHON"
+    echo "  The Python version used to create the venv is no longer installed."
+    if [ -n "$RECORDED_VERSION" ]; then
+        echo "  Originally created with: $RECORDED_VERSION"
+    fi
+    echo ""
+    echo "This typically happens when Homebrew updates Python to a newer version"
+    echo "and removes the old one."
+    echo ""
+
+    if [ "$FIX_VENV" = true ]; then
+        echo "Rebuilding venv (--fix-venv)..."
+        if ! "$SCRIPT_DIR/setup-lunar-integration.sh"; then
+            echo "Error: venv rebuild failed."
+            exit 1
+        fi
+
+        # Verify rebuild succeeded
+        if ! "$VENV_PYTHON" --version &>/dev/null; then
+            echo "Error: venv rebuild completed but Python is still not executable."
+            exit 1
+        fi
+        echo ""
+        echo "Venv rebuilt successfully. Continuing startup..."
+    else
+        echo "To fix automatically, run:"
+        echo "  $0 --fix-venv"
+        echo ""
+        echo "Or manually rebuild:"
+        echo "  ./scripts/setup-lunar-integration.sh"
+        exit 1
+    fi
 fi
 
 if [ ! -f "$PROJECT_DIR/td-usb" ]; then
