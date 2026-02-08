@@ -228,6 +228,8 @@ IWS660-CS illuminance sensor can be integrated with [Lunar](https://lunar.fyi/) 
 IWS660-CS (USB) → bridge daemon (root) → ~/.td-usb/lux → lunarsensor agent (user) → Lunar
 ```
 
+Detailed implementation document (Japanese): [docs/lunar-integration-macos-ja.md](docs/lunar-integration-macos-ja.md)
+
 ### Prerequisites
 
 - macOS
@@ -271,6 +273,7 @@ launchd/
    ```
    - One-time administrator authentication is required during installation.
    - The installer rewrites plist paths for the current user/workspace before loading services.
+   - Repository plist files are templates (`__HOME__`, `__PROJECT_DIR__`, `__USER__`) and do not contain personal paths.
 
 4. **Verify service status/API:**
    ```bash
@@ -291,14 +294,15 @@ launchd/
 ### Management Commands
 
 ```bash
-# Check service status
-launchctl list | grep com.tokyodevices.iws660
+# Recommended status check
+./scripts/check-launchd-services.sh
 
 # Stop user agent
-launchctl bootout gui/$(id -u)/com.tokyodevices.iws660-lunar
+sudo launchctl bootout gui/$(id -u)/com.tokyodevices.iws660-lunar
 
 # Start user agent
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+sudo launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tokyodevices.iws660-lunar.plist
+sudo launchctl kickstart -k gui/$(id -u)/com.tokyodevices.iws660-lunar
 
 # Stop bridge daemon
 sudo launchctl bootout system/com.tokyodevices.iws660-bridge
@@ -309,6 +313,7 @@ sudo launchctl bootstrap system /Library/LaunchDaemons/com.tokyodevices.iws660-b
 # View logs
 tail -f ~/Library/Logs/td-usb/bridge-daemon.log
 tail -f ~/Library/Logs/td-usb/lunarsensor-agent.log
+tail -f ~/.td-usb/bridge.log
 ```
 
 ### Manual Operation
@@ -366,7 +371,10 @@ curl http://127.0.0.1:8000/sensor/ambient_light
 sudo launchctl print system/com.tokyodevices.iws660-bridge | grep -E "state|last exit code|runs"
 
 # Lunar agent status (user)
-launchctl print gui/$(id -u)/com.tokyodevices.iws660-lunar | grep -E "state|last exit code|runs"
+sudo launchctl print gui/$(id -u)/com.tokyodevices.iws660-lunar | grep -E "state|last exit code|runs"
+
+# Reinstall/reload both services
+./scripts/install-launchd-services.sh
 ```
 
 ### How It Works
@@ -382,6 +390,7 @@ launchctl print gui/$(id -u)/com.tokyodevices.iws660-lunar | grep -E "state|last
 - No runtime `sudo` call in normal operation (daemon handles USB access)
 - Privileged boundary is explicit: root daemon (USB read) vs user agent (HTTP API)
 - The lux file is stored under `~/.td-usb/lux` (private directory, `0700`)
+- The bridge daemon rejects symlink paths for `~/.td-usb`, `lux`, and `bridge.log` to avoid unsafe root writes/chown
 - The sensor API is bound to `127.0.0.1` to avoid exposing sensor data on LAN
 - Legacy fallback remains available: `./scripts/configure-sudoers.sh` + `./scripts/start-lunar-integration.sh`
 

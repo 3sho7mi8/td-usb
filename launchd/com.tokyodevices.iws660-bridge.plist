@@ -24,10 +24,10 @@
     <string>077</string>
 
     <key>StandardOutPath</key>
-    <string>/Users/yoshino/Library/Logs/td-usb/bridge-daemon.log</string>
+    <string>__HOME__/Library/Logs/td-usb/bridge-daemon.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/yoshino/Library/Logs/td-usb/bridge-daemon-error.log</string>
+    <string>__HOME__/Library/Logs/td-usb/bridge-daemon-error.log</string>
 
     <key>WorkingDirectory</key>
     <string>/usr/local/libexec/td-usb</string>
@@ -39,13 +39,13 @@
         <key>TD_USB_BIN</key>
         <string>/usr/local/libexec/td-usb/td-usb-root</string>
         <key>PROJECT_DIR</key>
-        <string>/Users/yoshino/Workspace/td-usb</string>
+        <string>__PROJECT_DIR__</string>
         <key>LUNAR_LUX_FILE</key>
-        <string>/Users/yoshino/.td-usb/lux</string>
+        <string>__HOME__/.td-usb/lux</string>
         <key>LUNAR_BRIDGE_LOG_FILE</key>
-        <string>/Users/yoshino/.td-usb/bridge.log</string>
+        <string>__HOME__/.td-usb/bridge.log</string>
         <key>LUNAR_LUX_OWNER</key>
-        <string>yoshino</string>
+        <string>__USER__</string>
     </dict>
 </dict>
 </plist>

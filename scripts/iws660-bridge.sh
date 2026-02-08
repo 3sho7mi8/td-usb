@@ -30,16 +30,51 @@ if [ "$LUX_DIR" = "$LUX_FILE" ]; then
     LUX_DIR="."
 fi
 DEBUG_LOG_FILE="${LUNAR_BRIDGE_LOG_FILE:-$LUX_DIR/bridge.log}"
+DEBUG_LOG_DIR="${DEBUG_LOG_FILE%/*}"
+if [ "$DEBUG_LOG_DIR" = "$DEBUG_LOG_FILE" ]; then
+    DEBUG_LOG_DIR="."
+fi
 INTERVAL="${LUX_INTERVAL_SECONDS:-2}"  # seconds
+
+CHMOD_BIN="/bin/chmod"
+CHOWN_BIN="/usr/sbin/chown"
+ID_BIN="/usr/bin/id"
+MKDIR_BIN="/bin/mkdir"
+MV_BIN="/bin/mv"
+
+is_root() {
+    [ "$("$ID_BIN" -u)" -eq 0 ]
+}
+
+fatal() {
+    echo "[$(date '+%H:%M:%S')] $*" >&2
+    exit 1
+}
+
+assert_not_symlink() {
+    local target="$1"
+    local description="$2"
+    if [ -L "$target" ]; then
+        fatal "$description must not be a symlink: $target"
+    fi
+}
 
 append_debug_log() {
     local line="$1"
 
+    if [ -e "$DEBUG_LOG_DIR" ]; then
+        assert_not_symlink "$DEBUG_LOG_DIR" "Bridge log directory"
+    fi
+    if [ -e "$DEBUG_LOG_FILE" ]; then
+        assert_not_symlink "$DEBUG_LOG_FILE" "Bridge log file"
+    fi
+
     {
+        "$MKDIR_BIN" -p "$DEBUG_LOG_DIR"
         printf "%s\n" "$line" >> "$DEBUG_LOG_FILE"
-        chmod 600 "$DEBUG_LOG_FILE"
-        if [ "$(id -u)" -eq 0 ] && [ -n "$LUX_OWNER" ]; then
-            chown "$LUX_OWNER" "$DEBUG_LOG_FILE"
+        "$CHMOD_BIN" 600 "$DEBUG_LOG_FILE"
+        if is_root && [ -n "$LUX_OWNER" ]; then
+            "$CHOWN_BIN" "$LUX_OWNER" "$DEBUG_LOG_FILE"
         fi
     } 2>/dev/null || true
 }
@@ -68,18 +103,29 @@ preflight_checks() {
         exit 1
     fi
 
-    mkdir -p "$LUX_DIR"
-    chmod 700 "$LUX_DIR" 2>/dev/null || true
+    if [ -e "$LUX_DIR" ]; then
+        assert_not_symlink "$LUX_DIR" "Lux directory"
+    fi
+    "$MKDIR_BIN" -p "$LUX_DIR"
+    assert_not_symlink "$LUX_DIR" "Lux directory"
+    "$CHMOD_BIN" 700 "$LUX_DIR" 2>/dev/null || true
 
-    if [ "$(id -u)" -eq 0 ] && [ -n "$LUX_OWNER" ]; then
-        if ! id "$LUX_OWNER" >/dev/null 2>&1; then
+    if [ -e "$DEBUG_LOG_DIR" ]; then
+        assert_not_symlink "$DEBUG_LOG_DIR" "Bridge log directory"
+    fi
+    if [ -e "$DEBUG_LOG_FILE" ]; then
+        assert_not_symlink "$DEBUG_LOG_FILE" "Bridge log file"
+    fi
+
+    if is_root && [ -n "$LUX_OWNER" ]; then
+        if ! "$ID_BIN" "$LUX_OWNER" >/dev/null 2>&1; then
             log_error "LUNAR_LUX_OWNER does not exist: $LUX_OWNER"
             exit 1
         fi
-        chown "$LUX_OWNER" "$LUX_DIR"
+        "$CHOWN_BIN" "$LUX_OWNER" "$LUX_DIR"
     fi
 
-    if [ "$(id -u)" -ne 0 ]; then
+    if ! is_root; then
         if [ ! -x "$SUDO_TD_USB_BIN" ]; then
             log_error "Privileged helper is missing or not executable: $SUDO_TD_USB_BIN"
             log_error "Run: ./scripts/configure-sudoers.sh"
@@ -105,9 +151,10 @@ preflight_checks() {
 
 apply_lux_permissions() {
     local target="$1"
-    chmod 600 "$target"
-    if [ "$(id -u)" -eq 0 ] && [ -n "$LUX_OWNER" ]; then
-        chown "$LUX_OWNER" "$target"
+    assert_not_symlink "$target" "Lux file"
+    "$CHMOD_BIN" 600 "$target"
+    if is_root && [ -n "$LUX_OWNER" ]; then
+        "$CHOWN_BIN" "$LUX_OWNER" "$target"
     fi
 }
 
@@ -116,7 +163,7 @@ read_lux() {
     local exit_code=0
 
     set +e
-    if [ "$(id -u)" -eq 0 ]; then
+    if is_root; then
         output="$("$TD_USB_BIN" iws660 get --format=simple 2>&1)"
         exit_code=$?
     else
@@ -139,7 +186,10 @@ write_lux_atomically() {
 
     printf "%s\n" "$value" > "$tmp_file"
     apply_lux_permissions "$tmp_file"
-    mv -f "$tmp_file" "$LUX_FILE"
+    if [ -e "$LUX_FILE" ]; then
+        assert_not_symlink "$LUX_FILE" "Lux file"
+    fi
+    "$MV_BIN" -f "$tmp_file" "$LUX_FILE"
     apply_lux_permissions "$LUX_FILE"
 }
 

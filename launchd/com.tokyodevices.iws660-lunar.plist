@@ -7,7 +7,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yoshino/Workspace/td-usb/scripts/start-lunarsensor-agent.sh</string>
+        <string>__PROJECT_DIR__/scripts/start-lunarsensor-agent.sh</string>
     </array>
 
     <key>RunAtLoad</key>
@@ -20,20 +20,20 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/yoshino/Library/Logs/td-usb/lunarsensor-agent.log</string>
+    <string>__HOME__/Library/Logs/td-usb/lunarsensor-agent.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/yoshino/Library/Logs/td-usb/lunarsensor-agent-error.log</string>
+    <string>__HOME__/Library/Logs/td-usb/lunarsensor-agent-error.log</string>
 
     <key>WorkingDirectory</key>
-    <string>/Users/yoshino/Workspace/td-usb</string>
+    <string>__PROJECT_DIR__</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>LUNAR_LUX_FILE</key>
-        <string>/Users/yoshino/.td-usb/lux</string>
+        <string>__HOME__/.td-usb/lux</string>
     </dict>
 </dict>
 </plist>
