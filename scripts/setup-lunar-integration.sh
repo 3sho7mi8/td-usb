@@ -2,14 +2,36 @@
 # Setup script for Lunar integration with IWS660-CS
 # Installs lunarsensor and configures Lunar app
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LUNARSENSOR_DIR="$HOME/.lunarsensor"
 VENV_DIR="$LUNARSENSOR_DIR/venv"
+USE_SUDOERS=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --sudoers|--with-sudoers)
+            USE_SUDOERS=true
+            ;;
+        --skip-sudoers)
+            USE_SUDOERS=false
+            ;;
+    esac
+done
 
 echo "=== IWS660-CS Lunar Integration Setup ==="
 echo ""
+
+if [ "$USE_SUDOERS" = true ]; then
+    echo "Configuring sudoers for non-interactive sensor reads..."
+    "$SCRIPT_DIR/configure-sudoers.sh"
+    echo ""
+else
+    echo "Skipping sudoers configuration (LaunchDaemon mode recommended)."
+    echo "To enable old sudoers mode, use: $0 --sudoers"
+    echo ""
+fi
 
 # Find suitable Python version
 # Priority: 3.13 > 3.12 > 3.11 > python3
@@ -85,8 +107,8 @@ echo ""
 echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "1. Start the bridge: ./scripts/iws660-bridge.sh"
-echo "2. Start lunarsensor: cd ~/.lunarsensor && ./venv/bin/uvicorn lunarsensor:app --port 8000"
+echo "1. Install launchd services: ./scripts/install-launchd-services.sh"
+echo "2. Verify status: ./scripts/check-launchd-services.sh"
 echo "3. Enable Sensor Mode in Lunar app"
 echo ""
-echo "Or use the integrated script: ./scripts/start-lunar-integration.sh"
+echo "Manual fallback: ./scripts/start-lunar-integration.sh"

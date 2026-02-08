@@ -55,11 +55,11 @@ static int set(td_context_t* context)
 
 		time(&epoc); ptm = localtime(&epoc);
 
-		sprintf(buffer, "%02d%02d%02d", ptm->tm_year - 100, ptm->tm_mon + 1, ptm->tm_mday);
+		snprintf(buffer, sizeof(buffer), "%02d%02d%02d", ptm->tm_year - 100, ptm->tm_mon + 1, ptm->tm_mday);
 		value = strtol(buffer, NULL, 16);
 		tddev2_write_devreg(context, REGADDR_DATE, value);
 
-		sprintf(buffer, "%02d%02d%02d", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+		snprintf(buffer, sizeof(buffer), "%02d%02d%02d", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
 		value = strtol(buffer, NULL, 16);
 		tddev2_write_devreg(context, REGADDR_TIME, value);
 	}

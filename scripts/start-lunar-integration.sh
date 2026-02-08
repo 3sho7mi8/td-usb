@@ -1,41 +1,47 @@
 #!/bin/bash
 # Integrated startup script for IWS660-CS + Lunar
-# Starts both the bridge and lunarsensor
+# Manual fallback mode: starts bridge + lunarsensor in one terminal
 
-set -e
+set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LUNARSENSOR_DIR="$HOME/.lunarsensor"
 VENV_PYTHON="$LUNARSENSOR_DIR/venv/bin/python"
 LOG_DIR="$HOME/Library/Logs/td-usb"
+SUDO_TD_USB_BIN="${SUDO_TD_USB_BIN:-/usr/local/libexec/td-usb/td-usb-root}"
+LUX_FILE="${LUNAR_LUX_FILE:-$HOME/.td-usb/lux}"
+LUX_DIR="$(dirname "$LUX_FILE")"
 
 # Create log directory
 mkdir -p "$LOG_DIR"
+mkdir -p "$LUX_DIR"
+chmod 700 "$LUX_DIR" 2>/dev/null || true
 
 # Cleanup function
 cleanup() {
+    trap - INT TERM EXIT
     echo ""
     echo "[$(date '+%H:%M:%S')] Shutting down..."
 
     # Kill child processes
-    if [ -n "$BRIDGE_PID" ] && kill -0 "$BRIDGE_PID" 2>/dev/null; then
+    if [ -n "${BRIDGE_PID:-}" ] && kill -0 "$BRIDGE_PID" 2>/dev/null; then
         kill "$BRIDGE_PID" 2>/dev/null
         echo "[$(date '+%H:%M:%S')] Bridge stopped (PID: $BRIDGE_PID)"
     fi
 
-    if [ -n "$LUNARSENSOR_PID" ] && kill -0 "$LUNARSENSOR_PID" 2>/dev/null; then
+    if [ -n "${LUNARSENSOR_PID:-}" ] && kill -0 "$LUNARSENSOR_PID" 2>/dev/null; then
         kill "$LUNARSENSOR_PID" 2>/dev/null
         echo "[$(date '+%H:%M:%S')] lunarsensor stopped (PID: $LUNARSENSOR_PID)"
     fi
 
     # Clean up lux file
-    rm -f /tmp/lux
+    rm -f "$LUX_FILE"
 
     echo "[$(date '+%H:%M:%S')] Cleanup complete"
     exit 0
 }
-trap cleanup INT TERM EXIT
 
 # Parse options
 FIX_VENV=false
@@ -109,24 +115,50 @@ if [ ! -f "$PROJECT_DIR/td-usb" ]; then
     exit 1
 fi
 
+if [ ! -x "$SUDO_TD_USB_BIN" ]; then
+    echo "Error: Privileged helper not found: $SUDO_TD_USB_BIN"
+    echo "Run: ./scripts/configure-sudoers.sh"
+    exit 1
+fi
+
+if [ "$PROJECT_DIR/td-usb" -nt "$SUDO_TD_USB_BIN" ]; then
+    echo "Warning: Privileged helper is older than project td-usb."
+    echo "Run: ./scripts/configure-sudoers.sh to refresh /usr/local/libexec helper."
+fi
+
+SUDO_CHECK_OUTPUT=""
+SUDO_CHECK_EXIT=0
+set +e
+SUDO_CHECK_OUTPUT="$(sudo -n "$SUDO_TD_USB_BIN" 2>&1)"
+SUDO_CHECK_EXIT=$?
+set -e
+
+if [ "$SUDO_CHECK_EXIT" -eq 1 ] && printf "%s" "$SUDO_CHECK_OUTPUT" | grep -Eq "password is required|a terminal is required"; then
+    echo "Error: Non-interactive sudo permission is not configured for td-usb."
+    echo "Run: ./scripts/configure-sudoers.sh"
+    exit 1
+fi
+
 echo "=== IWS660-CS + Lunar Integration ==="
 echo ""
 echo "Logs: $LOG_DIR"
-echo "Lux file: /tmp/lux"
+echo "Lux file: $LUX_FILE"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
+trap cleanup INT TERM EXIT
+
 # Start bridge in background
 echo "[$(date '+%H:%M:%S')] Starting IWS660-CS bridge..."
-"$SCRIPT_DIR/iws660-bridge.sh" > "$LOG_DIR/bridge.log" 2>&1 &
+LUNAR_LUX_FILE="$LUX_FILE" SUDO_TD_USB_BIN="$SUDO_TD_USB_BIN" "$SCRIPT_DIR/iws660-bridge.sh" > "$LOG_DIR/bridge.log" 2>&1 &
 BRIDGE_PID=$!
 echo "[$(date '+%H:%M:%S')] Bridge started (PID: $BRIDGE_PID)"
 
 # Wait for first lux value
 sleep 3
-if [ -f /tmp/lux ]; then
-    echo "[$(date '+%H:%M:%S')] Initial lux value: $(cat /tmp/lux)"
+if [ -f "$LUX_FILE" ]; then
+    echo "[$(date '+%H:%M:%S')] Initial lux value: $(cat "$LUX_FILE")"
 else
     echo "[$(date '+%H:%M:%S')] Warning: No lux value yet (check device connection)"
 fi
@@ -134,7 +166,7 @@ fi
 # Start lunarsensor with uvicorn
 echo "[$(date '+%H:%M:%S')] Starting lunarsensor..."
 cd "$LUNARSENSOR_DIR"
-"$LUNARSENSOR_DIR/venv/bin/uvicorn" lunarsensor:app --host 0.0.0.0 --port 8000 > "$LOG_DIR/lunarsensor.log" 2>&1 &
+LUNAR_LUX_FILE="$LUX_FILE" "$LUNARSENSOR_DIR/venv/bin/uvicorn" lunarsensor:app --host 127.0.0.1 --port 8000 > "$LOG_DIR/lunarsensor.log" 2>&1 &
 LUNARSENSOR_PID=$!
 echo "[$(date '+%H:%M:%S')] lunarsensor started (PID: $LUNARSENSOR_PID)"
 
@@ -142,8 +174,8 @@ echo "[$(date '+%H:%M:%S')] lunarsensor started (PID: $LUNARSENSOR_PID)"
 sleep 2
 
 # Test API
-if curl -s http://localhost:8000/sensor/ambient_light > /dev/null 2>&1; then
-    echo "[$(date '+%H:%M:%S')] API available at http://localhost:8000/sensor/ambient_light"
+if curl -s http://127.0.0.1:8000/sensor/ambient_light > /dev/null 2>&1; then
+    echo "[$(date '+%H:%M:%S')] API available at http://127.0.0.1:8000/sensor/ambient_light"
 else
     echo "[$(date '+%H:%M:%S')] Warning: API not responding yet"
 fi

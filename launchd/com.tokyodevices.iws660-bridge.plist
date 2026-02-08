@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tokyodevices.iws660-bridge</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/usr/local/libexec/td-usb/iws660-bridge-root.sh</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>Umask</key>
+    <string>077</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yoshino/Library/Logs/td-usb/bridge-daemon.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yoshino/Library/Logs/td-usb/bridge-daemon-error.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/usr/local/libexec/td-usb</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/sbin:/sbin:/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin</string>
+        <key>TD_USB_BIN</key>
+        <string>/usr/local/libexec/td-usb/td-usb-root</string>
+        <key>PROJECT_DIR</key>
+        <string>/Users/yoshino/Workspace/td-usb</string>
+        <key>LUNAR_LUX_FILE</key>
+        <string>/Users/yoshino/.td-usb/lux</string>
+        <key>LUNAR_BRIDGE_LOG_FILE</key>
+        <string>/Users/yoshino/.td-usb/bridge.log</string>
+        <key>LUNAR_LUX_OWNER</key>
+        <string>yoshino</string>
+    </dict>
+</dict>
+</plist>

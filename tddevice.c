@@ -29,7 +29,8 @@ int tddev1_init_operation(td_context_t* context)
 
 	buffer[1] = TDDEV1_CMD_INIT;
 
-	time(&epoc); sprintf((char*)&buffer[2], "%llu", epoc);
+	time(&epoc);
+	snprintf((char*)&buffer[2], MAX_REPORT_LENGTH - 1, "%llu", (unsigned long long)epoc);
 
 	if (TdHidSetReport(context->handle, buffer, context->device_type->output_report_size + 1, USB_HID_REPORT_TYPE_FEATURE))
 	{

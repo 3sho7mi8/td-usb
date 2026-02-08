@@ -89,11 +89,21 @@ int TdHidListDevices(uint16_t vendor, uint16_t product, const char *product_name
 						if (buffer_count > 0)
 						{
 							buffer_count += 1;
-							if (lpBuffer != NULL && szBuffer >= (buffer_count + 1)) strcat(lpBuffer, ",");
+							if (lpBuffer != NULL && szBuffer >= (buffer_count + 1))
+							{
+								size_t used = strlen(lpBuffer);
+								size_t remain = (used < (size_t)szBuffer) ? ((size_t)szBuffer - used - 1) : 0;
+								if (remain > 0) strncat(lpBuffer, ",", remain);
+							}
 						}
 
 						buffer_count += len;
-						if (lpBuffer != NULL && szBuffer >= (buffer_count + 1)) strcat(lpBuffer, tmp_buffer);
+						if (lpBuffer != NULL && szBuffer >= (buffer_count + 1))
+						{
+							size_t used = strlen(lpBuffer);
+							size_t remain = (used < (size_t)szBuffer) ? ((size_t)szBuffer - used - 1) : 0;
+							if (remain > 0) strncat(lpBuffer, tmp_buffer, remain);
+						}
 					}
 
 					usb_close(handle);

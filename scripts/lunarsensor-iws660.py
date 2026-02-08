@@ -22,6 +22,7 @@ POLLING_SECONDS = 2
 CLIENT = None
 last_lux = 400
 sensor_lock = asyncio.Lock()  # serialize sensor or file access
+LUX_FILE = os.getenv("LUNAR_LUX_FILE", os.path.expanduser("~/.td-usb/lux"))
 
 
 @app.on_event("startup")
@@ -80,9 +81,22 @@ async def events(request: Request):
 
 # Synchronous helper for reading lux (e.g. from file or sensor)
 def _sync_read_lux():
-    if os.path.exists("/tmp/lux"):
-        with open("/tmp/lux") as f:
-            return float(f.read().strip() or "400.0")
+    if os.path.exists(LUX_FILE):
+        with open(LUX_FILE) as f:
+            raw_value = f.read().strip()
+            if not raw_value:
+                return 400.0
+            try:
+                lux = float(raw_value)
+            except ValueError:
+                log.warning("Invalid lux value in %s: %r", LUX_FILE, raw_value)
+                return None
+
+            if lux < 0:
+                log.warning("Negative lux value ignored: %s", raw_value)
+                return None
+
+            return lux
     return 400.0
 
 
